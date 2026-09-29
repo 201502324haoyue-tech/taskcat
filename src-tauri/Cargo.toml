@@ -1,0 +1,28 @@
+[package]
+name = "eisenhower-pet"
+version = "0.1.0"
+description = "任务喵 — Tauri 桌面壳"
+authors = ["task-cat"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "eisenhower_pet_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+base64 = "0.22"
+image = "0.24"
+screenshots = "0.8"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2.11.3", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tiny_http = "0.12"
+ureq = { version = "2", features = ["json", "native-tls"] }
+winreg = "0.55"

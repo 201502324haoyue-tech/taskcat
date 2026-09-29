@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>任务喵 · 语音录入</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, #1e293b 0%, #0f172a 60%, #111827 100%);
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 40px 24px 60px; color: #e2e8f0;
+  }
+  .logo { font-size: 15px; color: #94a3b8; letter-spacing: 2px; margin-bottom: 6px; }
+  h1 { font-size: 26px; font-weight: 700; margin-bottom: 8px;
+       background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text;
+       -webkit-text-fill-color: transparent; }
+  .sub { font-size: 13px; color: #64748b; margin-bottom: 40px; text-align: center; line-height: 1.6; }
+
+  .mic-wrap { position: relative; margin-bottom: 30px; }
+  .mic-ring { position: absolute; inset: -14px; border-radius: 50%;
+              border: 2px solid rgba(56, 189, 248, 0.35); opacity: 0; }
+  .mic-ring.on { animation: pulse 1.4s ease-out infinite; }
+  @keyframes pulse {
+    0% { transform: scale(0.9); opacity: 0.8; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+  #micBtn {
+    width: 108px; height: 108px; border-radius: 50%; border: none; cursor: pointer;
+    font-size: 44px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #38bdf8, #6366f1); color: #fff;
+    box-shadow: 0 10px 30px rgba(56, 189, 248, 0.35);
+    transition: transform 0.15s; position: relative; z-index: 1;
+  }
+  #micBtn:active { transform: scale(0.93); }
+  #micBtn.listening { background: linear-gradient(145deg, #f87171, #ef4444); box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); }
+  #micHint { font-size: 12px; color: #94a3b8; margin-bottom: 24px; min-height: 16px; }
+
+  #textBox {
+    width: 100%; max-width: 420px; min-height: 120px; padding: 16px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px; font-size: 16px; line-height: 1.7; color: #f1f5f9;
+    outline: none; resize: vertical; margin-bottom: 20px;
+  }
+  #textBox::placeholder { color: #475569; }
+
+  #sendBtn {
+    width: 100%; max-width: 420px; padding: 16px; border: none; border-radius: 999px;
+    font-size: 17px; font-weight: 600; cursor: pointer;
+    background: linear-gradient(90deg, #34d399, #10b981); color: #0f172a;
+    box-shadow: 0 8px 24px rgba(52, 211, 153, 0.3); transition: opacity 0.15s;
+  }
+  #sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #status { margin-top: 18px; font-size: 13px; color: #34d399; min-height: 18px; text-align: center; }
+  .err { color: #f87171 !important; }
+</style>
+</head>
+<body>
+  <div class="logo">🐱 TASKCAT</div>
+  <h1>任务喵 · 语音录入</h1>
+  <div class="sub">点击麦克风说话，识别后点「发送」<br>任务自动写入电脑上的任务喵矩阵</div>
+
+  <div class="mic-wrap">
+    <div class="mic-ring" id="micRing"></div>
+    <button id="micBtn">🎤</button>
+  </div>
+  <div id="micHint">点击麦克风开始说话</div>
+
+  <textarea id="textBox" placeholder="语音识别结果会显示在这里，也可以手动输入…"></textarea>
+  <button id="sendBtn" disabled>📮 发送到电脑</button>
+  <div id="status"></div>
+
+<script>
+(function () {
+  const micBtn = document.getElementById('micBtn')
+  const micRing = document.getElementById('micRing')
+  const micHint = document.getElementById('micHint')
+  const textBox = document.getElementById('textBox')
+  const sendBtn = document.getElementById('sendBtn')
+  const statusEl = document.getElementById('status')
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+  let rec = null
+  let listening = false
+
+  function setStatus(msg, err) {
+    statusEl.textContent = msg
+    statusEl.className = err ? 'err' : ''
+  }
+
+  function updateSend() {
+    sendBtn.disabled = !textBox.value.trim()
+  }
+  textBox.addEventListener('input', updateSend)
+
+  if (!SR) {
+    micBtn.disabled = true
+    micBtn.style.opacity = 0.3
+    micHint.textContent = '当前浏览器不支持语音识别，请用 Chrome / Edge 打开'
+    setStatus('', true)
+    return
+  }
+
+  function start() {
+    rec = new SR()
+    rec.lang = 'zh-CN'
+    rec.continuous = true
+    rec.interimResults = true
+    let finalText = textBox.value.trim()
+    let first = true
+
+    rec.onstart = () => {
+      listening = true
+      micBtn.classList.add('listening')
+      micRing.classList.add('on')
+      micHint.textContent = '🔴 正在聆听… 再说一遍点麦克风停止'
+      if (first) { textBox.value = ''; first = false }
+    }
+    rec.onresult = (e) => {
+      let interim = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i]
+        if (r.isFinal) finalText += (finalText ? '，' : '') + r[0].transcript
+        else interim += r[0].transcript
+      }
+      textBox.value = (finalText + interim).trim()
+      updateSend()
+    }
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed') {
+        setStatus('❌ 请允许麦克风权限（浏览器地址栏左侧）', true)
+      } else if (e.error !== 'aborted' && e.error !== 'no-speech') {
+        setStatus('❌ 识别出错：' + e.error, true)
+      }
+      stop()
+    }
+    rec.onend = () => { if (listening) stop() }
+    try { rec.start() } catch {}
+  }
+
+  function stop() {
+    listening = false
+    micBtn.classList.remove('listening')
+    micRing.classList.remove('on')
+    micHint.textContent = textBox.value.trim() ? '点击麦克风可继续补充' : '点击麦克风开始说话'
+    try { rec && rec.stop() } catch {}
+    rec = null
+  }
+
+  micBtn.addEventListener('click', () => {
+    if (listening) stop()
+    else start()
+  })
+
+  sendBtn.addEventListener('click', async () => {
+    const text = textBox.value.trim()
+    if (!text) return
+    sendBtn.disabled = true
+    setStatus('⏳ 正在发送…')
+    try {
+      const r = await fetch('/task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (r.ok && j.ok) {
+        setStatus('✅ 已发送到电脑，正在写入任务喵！')
+        textBox.value = ''
+        updateSend()
+      } else {
+        setStatus('❌ 发送失败：' + (j.error || r.status), true)
+        sendBtn.disabled = false
+      }
+    } catch (e) {
+      setStatus('❌ 网络错误：' + e, true)
+      sendBtn.disabled = false
+    }
+  })
+})()
+</script>
+</body>
+</html>

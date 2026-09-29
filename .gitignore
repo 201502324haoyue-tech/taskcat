@@ -1,0 +1,85 @@
+# 根目录使用允许清单：避免把个人资料、下载包和临时文件误加入仓库。
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/package.json
+!/pnpm-lock.yaml
+!/pnpm-workspace.yaml
+!/tsconfig.json
+!/vite.config.ts
+!/capacitor.config.ts
+!/index.html
+!/.env.example
+!/icon-src.png
+!/src/
+!/src-tauri/
+!/android/
+!/tests/
+!/docs/
+!/scripts/
+!/.tools/
+
+# 本机工具与运行凭证不入库。
+/.tools/
+
+# 运维、登录、调试脚本与截图默认不入库，仅保留维护入口。
+/scripts/*
+!/scripts/taskcat-server.py
+!/scripts/requirements.txt
+!/scripts/check-publish.mjs
+
+# 仅保留当前维护文档；不重新纳入已删除的复刻 PRD。
+/docs/*
+!/docs/TAURI_INTEGRATION.md
+
+# 依赖、构建输出与测试缓存。
+node_modules/
+dist/
+target/
+build/
+.gradle/
+coverage/
+.vite/
+__pycache__/
+*.py[cod]
+*.tmpdir/
+*.tmp
+_tmp_*
+*.log
+
+# 本机配置与私密数据（示例文件不含真实凭证）。
+.env
+.env.*
+!.env.example
+*.local
+*.local.*
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+*.keystore
+*.credentials.json
+*.cookies.json
+local.properties
+
+# 安装包由 Releases 单独分发。
+*.exe
+*.apk
+*.aab
+*.msi
+*.zip
+*.7z
+
+# 编辑器本机状态。
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
